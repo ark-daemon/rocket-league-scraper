@@ -1,10 +1,10 @@
-# Data Extraction Architecture
+# Rocket League Esports Data Scraper
 
-A high-performance, asynchronous structural data pipeline engineered for resilient DOM parsing, dynamic content extraction, and normalized Parquet output. Built for data-engineering workflows that demand fault-tolerant fetching, declarative configuration, and clean data serialization.
+An async Python 3.11+ data extraction pipeline for Rocket League esports data. Built for resilient structural parsing, concurrent ingestion, and clean analytics-ready export.
 
 ## Overview
 
-This tool provides a modular, configuration-driven architecture for automated extraction from structured web sources. It combines:
+This tool provides a modular, configuration-driven architecture for automated extraction from structured esports data sources. It combines:
 
 - **Asynchronous HTTP ingestion** with polite rate limiting, exponential back-off, and circuit-breaker-style retries.
 - **Dynamic DOM parsing** that adapts to layout shifts and structural changes without hard-coding fragile selectors.
@@ -29,6 +29,7 @@ This tool provides a modular, configuration-driven architecture for automated ex
 
 ## Features
 
+- **Multi-Source Pipeline** — Ingests from tournament APIs, community wikis, and public spreadsheets through a unified interface.
 - **Declarative Target Configuration** — All endpoints, seeds, and identity strings are externalized to environment variables. No hard-coded targets or credentials ship with the codebase.
 - **Dual-Mode Fetching** — Prioritizes lightweight HTTP/JSON APIs and seamlessly falls back to browser-rendered content acquisition when dynamic pages are detected.
 - **Anti-Fragile Parsing** — Parsers use structural inference and defensive normalization rather than brittle XPath, preserving raw payloads for backfill when schemas drift.
@@ -106,7 +107,7 @@ All runtime behavior is controlled via environment variables prefixed with `RL_`
 
 ## Compliance & Ethics
 
-This tool is intended for lawful, ethical data-engineering research. Always:
+This tool is intended for lawful, ethical esports data research. Always:
 
 - Respect `robots.txt` and Terms of Service of target domains.
 - Keep rate limits conservative (default ≤ 2 req/s).

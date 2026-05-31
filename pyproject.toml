@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "rocketleague-scraper"
 version = "0.1.0"
-description = "Async structural data extraction pipeline with DOM parsing, resilience, and Parquet export."
+description = "Async Rocket League esports scraper with DOM parsing, resilience, and Parquet export."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Rocket League Scraper" }]
