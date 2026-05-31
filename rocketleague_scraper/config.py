@@ -44,7 +44,7 @@ class Settings(BaseSettings):
         mode="before",
     )
     @classmethod
-    def _split_csv(cls, v):
+    def _split_csv(cls, v: object) -> list[str] | object:
         if isinstance(v, str):
             return [x.strip() for x in v.split(",") if x.strip()]
         return v

@@ -44,7 +44,8 @@ class QueuePipeline(Generic[T]):
             try:
                 if item is None:
                     return
-                self.result.written += await self.handler(item)
+                count = await self.handler(item)
+                self.result.written += count
             except Exception:
                 logger.exception("Pipeline worker {} failed for item", index)
             finally:

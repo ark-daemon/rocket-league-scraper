@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -13,7 +13,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 @dataclass(slots=True)
 class RateLimiter:
     delay_seconds: float
-    _lock: asyncio.Lock = asyncio.Lock()
+    _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _last_call: float = 0.0
 
     async def wait(self) -> None:
@@ -62,7 +62,10 @@ class AsyncHttpClient:
     )
     async def get_json(self, url: str, **kwargs: Any) -> Any:
         response = await self.get(url, **kwargs)
-        return response.json()
+        try:
+            return response.json()
+        except Exception as exc:
+            raise httpx.HTTPError(f"Non-JSON response from {url}: {exc}") from exc
 
     async def __aenter__(self) -> "AsyncHttpClient":
         return self

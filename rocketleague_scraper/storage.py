@@ -266,25 +266,6 @@ CREATE TABLE IF NOT EXISTS earnings (
     UNIQUE(source, entity_type, entity_name, event_name, placement, date)
 );
 
-CREATE TABLE IF NOT EXISTS drekt_stats (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    spreadsheet_last_fetched TEXT NOT NULL,
-    row_index INTEGER NOT NULL,
-    entity_type TEXT,
-    player_name TEXT,
-    team_name TEXT,
-    event_name TEXT,
-    rlcs_season TEXT,
-    region TEXT,
-    stat_name TEXT,
-    stat_value TEXT,
-    source_columns_json TEXT NOT NULL,
-    row_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(spreadsheet_last_fetched, row_index)
-);
-
 CREATE TABLE IF NOT EXISTS scrape_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source TEXT NOT NULL,
@@ -392,20 +373,28 @@ class Storage:
         return await self._upsert_returning_id("positioning_stats", row, ["player_game_stats_id"])
 
     async def insert_many(self, table: str, rows: Iterable[dict[str, Any]]) -> int:
-        rows = list(rows)
-        if not rows:
+        cleaned: list[dict[str, Any]] = []
+        for row in rows:
+            clean = {k: self._normalize_value(v) for k, v in row.items() if v is not None}
+            if clean:
+                cleaned.append(clean)
+        if not cleaned:
             return 0
+        grouped: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+        for clean in cleaned:
+            key = tuple(sorted(clean))
+            grouped.setdefault(key, []).append(clean)
         async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
-            count = 0
-            for row in rows:
-                clean = {k: self._normalize_value(v) for k, v in row.items() if v is not None}
-                columns = list(clean)
+            total = 0
+            for columns_tuple, group in grouped.items():
+                columns = list(columns_tuple)
                 placeholders = ", ".join("?" for _ in columns)
                 sql = f"INSERT OR IGNORE INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
-                cur = await db.execute(sql, tuple(clean[c] for c in columns))
-                count += cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+                values = [tuple(r[c] for c in columns) for r in group]
+                await db.executemany(sql, values)
+                total += len(group)
             await db.commit()
-            return count
+            return total
 
     async def counts(self) -> dict[str, int]:
         tables = [
@@ -426,15 +415,15 @@ class Storage:
             "teams", "players", "rosters", "staff", "tournaments", "earnings", "drekt_stats",
         ]
         written: list[Path] = []
-        db_uri = self._sync_conn_uri()
+        db_conn = self._sync_connection()
         try:
             for table in tables:
-                df = pd.read_sql_query(f"SELECT * FROM {table}", db_uri)
+                df = pd.read_sql_query(f"SELECT * FROM {table}", db_conn)
                 out = export_dir / f"{table}.parquet"
                 df.to_parquet(out, index=False)
                 written.append(out)
         finally:
-            db_uri.close()
+            db_conn.close()
         return written
 
     async def _upsert_returning_id(
@@ -486,6 +475,6 @@ class Storage:
             return dump_json(value)
         return value
 
-    def _sync_conn_uri(self):
+    def _sync_connection(self):
         import sqlite3
         return sqlite3.connect(self.db_path)

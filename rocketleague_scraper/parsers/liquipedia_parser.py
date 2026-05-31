@@ -8,7 +8,7 @@ from typing import Any
 from bs4 import BeautifulSoup
 from selectolax.parser import HTMLParser
 
-from ..utils import dump_json, parse_money, safe_column_name
+from ..utils import dump_json, infer_region, parse_money, safe_column_name
 
 
 def clean_text(value: str | None) -> str | None:
@@ -135,14 +135,6 @@ def parse_earnings(html: str, page_name: str) -> list[dict[str, Any]]:
             }
         )
     return earnings
-
-
-def infer_region(*values: str | None) -> str | None:
-    text = " ".join(v or "" for v in values).upper()
-    for region in ("APAC", "MENA", "SAM", "OCE", "SSA", "NA", "EU"):
-        if re.search(rf"\b{region}\b", text):
-            return region
-    return None
 
 
 def infer_season(value: str | None) -> str | None:

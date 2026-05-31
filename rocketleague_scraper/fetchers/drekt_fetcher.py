@@ -6,7 +6,6 @@ import asyncio
 import io
 import random
 import re
-from typing import Any
 
 import aiosqlite
 import pandas as pd
@@ -27,9 +26,8 @@ class DrektFetcher:
 
     async def _init_db(self) -> None:
         async with aiosqlite.connect(self.storage.db_path, timeout=30.0) as db:
-            await db.execute("DROP TABLE IF EXISTS drekt_stats")
             await db.execute("""
-                CREATE TABLE drekt_stats (
+                CREATE TABLE IF NOT EXISTS drekt_stats (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     sheet_id TEXT,
                     gid TEXT,

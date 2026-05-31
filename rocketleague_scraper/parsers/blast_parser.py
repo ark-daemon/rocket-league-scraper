@@ -5,15 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..reconciliation import build_match_key
-from ..utils import dump_json, parse_duration_seconds, parse_money
-
-
-def infer_region(*values: str | None) -> str | None:
-    text = " ".join(v or "" for v in values).upper()
-    for region in ("APAC", "MENA", "SAM", "OCE", "SSA", "NA", "EU"):
-        if region in text:
-            return region
-    return None
+from ..utils import dump_json, infer_region, parse_duration_seconds, parse_money
 
 
 def parse_team(team: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -171,18 +163,16 @@ def parse_player_stats_payload(payload: Any, game_id_lookup: dict[str, int]) -> 
     BLAST changes these response shapes, so this walks common containers and keeps raw JSON.
     """
     candidates: list[dict[str, Any]] = []
+    stack: list[Any] = [payload]
 
-    def walk(value: Any) -> None:
+    while stack:
+        value = stack.pop()
         if isinstance(value, dict):
             if any(key in value for key in ("player", "playerId", "playerName")) and any(key in value for key in STAT_ALIASES):
                 candidates.append(value)
-            for nested in value.values():
-                walk(nested)
+            stack.extend(value.values())
         elif isinstance(value, list):
-            for item in value:
-                walk(item)
-
-    walk(payload)
+            stack.extend(value)
     rows: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]] = []
     for item in candidates:
         map_id = item.get("mapId") or item.get("gameId") or item.get("matchId")

@@ -25,7 +25,7 @@ def normalize_name(value: str | None) -> str:
     return re.sub(r"\s+", " ", value).strip().casefold()
 
 
-def parse_int(value: Any) -> int | None:
+def parse_int(value: object) -> int | None:
     if value in (None, "", "-"):
         return None
     try:
@@ -34,7 +34,7 @@ def parse_int(value: Any) -> int | None:
         return None
 
 
-def parse_float(value: Any) -> float | None:
+def parse_float(value: object) -> float | None:
     if value in (None, "", "-"):
         return None
     try:
@@ -43,7 +43,7 @@ def parse_float(value: Any) -> float | None:
         return None
 
 
-def parse_money(value: Any) -> float | None:
+def parse_money(value: object) -> float | None:
     if value in (None, "", "-"):
         return None
     text = re.sub(r"[^0-9.-]", "", str(value))
@@ -71,3 +71,11 @@ def composite_match_key(tournament: str | None, team_a: str | None, team_b: str 
 def safe_column_name(value: str, fallback: str = "column") -> str:
     cleaned = re.sub(r"[^a-zA-Z0-9_]+", "_", value.strip().lower()).strip("_")
     return cleaned or fallback
+
+
+def infer_region(*values: str | None) -> str | None:
+    text = " ".join(v or "" for v in values).upper()
+    for region in ("APAC", "MENA", "SAM", "OCE", "SSA", "NA", "EU"):
+        if re.search(rf"\b{region}\b", text):
+            return region
+    return None

@@ -77,10 +77,9 @@ class LiquipediaFetcher:
         tournament_id = await self.storage.upsert_tournament(tournament)
         count += 1
 
-        roster_rows, staff_rows, transfer_rows = parse_rosters(html)
+        roster_rows, staff_rows, _transfer_rows = parse_rosters(html)
         count += await self.storage.insert_many("rosters", roster_rows)
         count += await self.storage.insert_many("staff", staff_rows)
-        count += await self.storage.insert_many("earnings", transfer_rows)
 
         earnings = parse_earnings(html, page_name)
         for row in earnings:

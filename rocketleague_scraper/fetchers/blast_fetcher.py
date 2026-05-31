@@ -5,14 +5,13 @@ from __future__ import annotations
 import asyncio
 import re
 from typing import Any
-from urllib.parse import urljoin
 
 import httpx
 from loguru import logger
 from tqdm.asyncio import tqdm
 
 from ..config import Settings
-from ..http_client import AsyncHttpClient
+from ..http_client import AsyncHttpClient, RateLimiter
 from ..parsers.blast_parser import (
     parse_games,
     parse_match,
@@ -81,9 +80,6 @@ class BlastFetcher:
                 return data
         except Exception as exc:
             logger.warning("BLAST matches API failed for {}: {}", slug, exc)
-        html = await self.fetch_rendered_page(urljoin(str(self.settings.blast_base_url), f"tournaments/{slug}"))
-        logger.warning("No JSON parsed from BLAST fallback HTML for {}; stored zero matches", slug)
-        _ = html
         return []
 
     async def _store_match_payload(self, match: dict[str, Any]) -> int:
@@ -135,17 +131,25 @@ class BlastFetcher:
                 ]
             )
         results: list[Any] = []
-        async with httpx.AsyncClient(timeout=self.settings.http_timeout_seconds, follow_redirects=True) as client:
+        rate_limiter = RateLimiter(self.settings.blast_rate_limit_seconds)
+        async with httpx.AsyncClient(
+            timeout=self.settings.http_timeout_seconds,
+            follow_redirects=True,
+            headers={"User-Agent": self.settings.user_agent},
+        ) as client:
             for url in candidates:
-                try:
-                    response = await client.get(url, headers={"User-Agent": self.settings.user_agent})
-                    if response.status_code == 404:
-                        continue
-                    response.raise_for_status()
-                    results.append(response.json())
-                    await asyncio.sleep(self.settings.blast_rate_limit_seconds)
-                except Exception:
-                    continue
+                for attempt in range(3):
+                    try:
+                        await rate_limiter.wait()
+                        response = await client.get(url)
+                        if response.status_code == 404:
+                            break
+                        response.raise_for_status()
+                        results.append(response.json())
+                        break
+                    except Exception:
+                        if attempt < 2:
+                            await asyncio.sleep(2 ** attempt)
         return results
 
     async def fetch_rendered_page(self, url: str) -> str:
@@ -154,7 +158,7 @@ class BlastFetcher:
         browser = await launch_async(args=[f"--fingerprint={self.settings.blast_fingerprint_seed}"])
         try:
             page = await browser.new_page()
-            await page.goto(url)
+            await page.goto(url, timeout=30_000)
             await asyncio.sleep(3)
             return await page.content()
         finally:
